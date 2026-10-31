@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Inteligência Acadêmica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="dados.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 flex flex-col md:flex-row min-h-screen overflow-x-hidden">
+
+    <!-- Sidebar: Filtros e Onboarding -->
+    <aside class="w-full md:w-80 bg-white shadow-lg p-5 flex flex-col gap-5 overflow-y-auto max-h-screen shrink-0 border-r border-gray-200">
+        <div>
+            <h2 class="text-lg font-bold text-blue-700 mb-3">🎯 Assistente de Cotas</h2>
+            
+            <label class="block text-xs font-semibold mb-1 text-gray-600">Ensino Médio em Escola Pública?</label>
+            <select id="escola_publica" class="w-full border rounded p-2 mb-2.5 bg-gray-50 text-sm" onchange="calcularCota()">
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+            </select>
+
+            <label class="block text-xs font-semibold mb-1 text-gray-600">Renda per capita <= 1 Salário Mínimo?</label>
+            <select id="renda" class="w-full border rounded p-2 mb-2.5 bg-gray-50 text-sm" onchange="calcularCota()" disabled>
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+            </select>
+
+            <label class="block text-xs font-semibold mb-1 text-gray-600">Autodeclarado PPI?</label>
+            <select id="ppi" class="w-full border rounded p-2 mb-3 bg-gray-50 text-sm" onchange="calcularCota()" disabled>
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+            </select>
+
+            <div class="bg-blue-50 p-2.5 rounded text-blue-900 border border-blue-200">
+                <span class="text-xs text-blue-700">Modalidade sugerida:</span><br>
+                <strong id="cota_sugerida" class="text-base font-bold">Ampla Concorrência</strong>
+            </div>
+        </div>
+
+        <hr>
+
+        <div>
+            <h2 class="text-lg font-bold text-blue-700 mb-3">🔍 Filtros</h2>
+            
+            <label class="block text-xs font-semibold mb-1 text-gray-600">Sua Nota Média (ENEM):</label>
+            <input type="number" id="nota_usuario" value="650" class="w-full border rounded p-2 mb-3 bg-gray-50 text-sm" oninput="atualizarPainel()">
+
+            <label class="block text-xs font-semibold mb-1 text-gray-600">Instituição:</label>
+            <select id="filtro_inst" class="w-full border rounded p-2 mb-3 bg-gray-50 text-sm" onchange="atualizarPainel()">
+                <option value="TODAS">Todas</option>
+                <option value="UFOPA">UFOPA</option>
+                <option value="UFPA">UFPA</option>
+                <option value="UEPA">UEPA</option>
+                <option value="IFPA">IFPA</option>
+            </select>
+
+            <label class="block text-xs font-semibold mb-1 text-gray-600">Chamada / Etapa:</label>
+            <select id="filtro_chamada" class="w-full border rounded p-2 bg-gray-50 text-sm" onchange="atualizarPainel()">
+                <option value="TODAS">Todas as Chamadas</option>
+                <option value="1ª Chamada">1ª Chamada</option>
+                <option value="2ª Chamada">2ª Chamada</option>
+                <option value="Cadastro Reserva">Cadastro Reserva</option>
+            </select>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 lg:p-8 overflow-y-auto">
+        <header class="mb-6">
+            <h1 class="text-2xl lg:text-3xl font-extrabold text-gray-900">Painel de Notas - Norte</h1>
+            <p class="text-gray-600 text-sm mt-1">Analise e compare suas chances de aprovação com base no histórico e listões oficiais.</p>
+        </header>
+
+        <!-- Legenda Dinâmica -->
+        <section class="bg-white p-4 rounded shadow-sm mb-6 border-l-4 border-blue-500">
+            <h3 class="font-bold text-base mb-1">📚 Regra da Modalidade Selecionada</h3>
+            <p id="legenda_cota" class="text-gray-700 text-sm">Sem requisitos específicos. Disputa universal.</p>
+        </section>
+
+        <!-- Comparador -->
+        <section class="mb-6">
+            <h2 class="text-xl font-bold mb-3">⚖️ Comparador Lado a Lado</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white p-4 rounded shadow-sm border border-gray-200">
+                    <label class="block text-xs font-semibold mb-1 text-gray-600">Escolha o 1º Curso</label>
+                    <select id="curso_1" class="w-full border rounded p-2 mb-3 bg-gray-50 text-sm" onchange="atualizarComparador()"></select>
+                    <div id="resultado_1" class="text-center mt-2"></div>
+                </div>
+                <div class="bg-white p-4 rounded shadow-sm border border-gray-200">
+                    <label class="block text-xs font-semibold mb-1 text-gray-600">Escolha o 2º Curso</label>
+                    <select id="curso_2" class="w-full border rounded p-2 mb-3 bg-gray-50 text-sm" onchange="atualizarComparador()"></select>
+                    <div id="resultado_2" class="text-center mt-2"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tabela de Viabilidade -->
+        <section class="bg-white p-4 rounded shadow-sm border border-gray-200 overflow-x-auto">
+            <h2 class="text-xl font-bold mb-3">🎯 Cursos onde sua nota é competitiva</h2>
+            <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                    <tr class="bg-gray-100 text-gray-700">
+                        <th class="p-2.5 border-b">Instituição</th>
+                        <th class="p-2.5 border-b">Campus</th>
+                        <th class="p-2.5 border-b">Curso</th>
+                        <th class="p-2.5 border-b">Chamada</th>
+                        <th class="p-2.5 border-b">Nota de Corte</th>
+                        <th class="p-2.5 border-b">Distância</th>
+                        <th class="p-2.5 border-b">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela_viabilidade">
+                    <!-- Gerado via JS -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script>
+        let dados = (typeof dadosDoServidor !== 'undefined') ? dadosDoServidor : [];
+
+        const legendas = {
+            "Ampla": "Sem requisitos específicos. Concorrência universal.",
+            "L1": "Candidatos com renda familiar bruta per capita <= 1 salário mínimo que cursaram integralmente o EM em escolas públicas.",
+            "L2": "Autodeclarados pretos, pardos ou indígenas, renda <= 1 salário mínimo, oriundos de escola pública.",
+            "L5": "Candidatos que cursaram integralmente o EM em escolas públicas, independentemente da renda.",
+            "L6": "Autodeclarados pretos, pardos ou indígenas que cursaram integralmente o EM em escolas públicas, independentemente da renda."
+        };
+
+        let cotaAtual = "Ampla";
+
+        function calcularCota() {
+            const escolaPub = document.getElementById("escola_publica").value;
+            const rendaSelect = document.getElementById("renda");
+            const ppiSelect = document.getElementById("ppi");
+
+            if (escolaPub === "sim") {
+                rendaSelect.disabled = false;
+                ppiSelect.disabled = false;
+                const renda = rendaSelect.value;
+                const ppi = ppiSelect.value;
+
+                if (renda === "sim" && ppi === "nao") cotaAtual = "L1";
+                else if (renda === "sim" && ppi === "sim") cotaAtual = "L2";
+                else if (renda === "nao" && ppi === "nao") cotaAtual = "L5";
+                else if (renda === "nao" && ppi === "sim") cotaAtual = "L6";
+            } else {
+                rendaSelect.disabled = true;
+                ppiSelect.disabled = true;
+                rendaSelect.value = "nao";
+                ppiSelect.value = "nao";
+                cotaAtual = "Ampla";
+            }
+
+            document.getElementById("cota_sugerida").innerText = cotaAtual === "Ampla" ? "Ampla Concorrência" : cotaAtual;
+            document.getElementById("legenda_cota").innerText = legendas[cotaAtual] || "";
+            atualizarPainel();
+        }
+
+        function atualizarPainel() {
+            const filtroInst = document.getElementById("filtro_inst").value;
+            const filtroChamada = document.getElementById("filtro_chamada").value;
+            const notaUsuario = parseFloat(document.getElementById("nota_usuario").value) || 0;
+
+            const dadosFiltrados = dados.filter(d => 
+                (filtroInst === "TODAS" || d.inst === filtroInst) && 
+                (filtroChamada === "TODAS" || (d.chamada || "1ª Chamada") === filtroChamada) && 
+                d.cota === cotaAtual
+            );
+
+            preencherSelects(dadosFiltrados);
+            renderizarTabela(dadosFiltrados, notaUsuario);
+            atualizarComparador();
+        }
+
+        function preencherSelects(dadosFiltrados) {
+            const select1 = document.getElementById("curso_1");
+            const select2 = document.getElementById("curso_2");
+            const val1 = select1.value;
+            const val2 = select2.value;
+
+            let options = '<option value="">Selecione um curso...</option>';
+            dadosFiltrados.forEach(d => {
+                options += `<option value="${d.inst} - ${d.curso}">${d.inst} | ${d.campus} | ${d.curso} (${d.chamada || '1ª Chamada'})</option>`;
+            });
+
+            select1.innerHTML = options;
+            select2.innerHTML = options;
+
+            if (val1) select1.value = val1;
+            if (val2) select2.value = val2;
+        }
+
+        function atualizarComparador() {
+            const notaUsuario = parseFloat(document.getElementById("nota_usuario").value) || 0;
+            calcularCard("curso_1", "resultado_1", notaUsuario);
+            calcularCard("curso_2", "resultado_2", notaUsuario);
+        }
+
+        function calcularCard(selectId, divId, notaUsuario) {
+            const valorSelect = document.getElementById(selectId).value;
+            const div = document.getElementById(divId);
+            
+            if (!valorSelect) {
+                div.innerHTML = "<span class='text-gray-400 text-xs'>Aguardando seleção...</span>";
+                return;
+            }
+
+            const [inst, cursoStr] = valorSelect.split(" - ");
+            const cursoData = dados.find(d => d.inst === inst && d.curso === cursoStr && d.cota === cotaAtual);
+
+            if (cursoData) {
+                const diff = (notaUsuario - cursoData.corte).toFixed(1);
+                const color = diff >= 0 ? "text-green-600" : "text-red-500";
+                const icon = diff >= 0 ? "▲" : "▼";
+                
+                div.innerHTML = `
+                    <p class="text-xs text-gray-500 mb-0.5">Nota de Corte (${cursoData.chamada || '1ª Chamada'})</p>
+                    <p class="text-3xl font-bold text-gray-800">${cursoData.corte.toFixed(1)}</p>
+                    <p class="text-xs font-semibold mt-1 ${color}">${icon} ${Math.abs(diff)} pts da sua nota</p>
+                `;
+            } else {
+                div.innerHTML = `<span class='text-red-400 text-xs'>Sem dados para esta cota.</span>`;
+            }
+        }
+
+        function renderizarTabela(dadosFiltrados, notaUsuario) {
+            const tbody = document.getElementById("tabela_viabilidade");
+            tbody.innerHTML = "";
+
+            dadosFiltrados.forEach(d => {
+                const diff = (notaUsuario - d.corte).toFixed(1);
+                const isFavoravel = diff >= 0;
+                
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2.5 font-semibold text-gray-800">${d.inst}</td>
+                        <td class="p-2.5 text-gray-600">${d.campus}</td>
+                        <td class="p-2.5 text-gray-800">${d.curso}</td>
+                        <td class="p-2.5 text-gray-600 text-xs font-medium"><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">${d.chamada || '1ª Chamada'}</span></td>
+                        <td class="p-2.5 font-bold">${d.corte.toFixed(1)}</td>
+                        <td class="p-2.5 ${isFavoravel ? 'text-green-600' : 'text-red-500'} font-semibold">
+                            ${diff > 0 ? '+' : ''}${diff}
+                        </td>
+                        <td class="p-2.5">
+                            <span class="px-2 py-0.5 text-xs rounded-full font-bold ${isFavoravel ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                                ${isFavoravel ? '🟢 Favorável' : '🔴 Risco'}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            if (dadosFiltrados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500 text-sm">Nenhum curso encontrado para os filtros selecionados.</td></tr>`;
+            }
+        }
+
+        calcularCota();
+    </script>
+</body>
+</html>
