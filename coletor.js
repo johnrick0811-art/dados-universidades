@@ -15,7 +15,8 @@ async function baixarArquivo(url, pastaDestino, nomeArquivo) {
                 url, 
                 method: 'GET', 
                 responseType: 'stream', 
-                timeout: 60000 
+                timeout: 60000,
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
             });
 
             response.data.pipe(writer);
@@ -25,13 +26,14 @@ async function baixarArquivo(url, pastaDestino, nomeArquivo) {
                 writer.on('error', reject);
             });
 
-            return;
+            return true;
         } catch (erro) {
             if (fs.existsSync(caminhoCompleto)) {
                 fs.unlinkSync(caminhoCompleto);
             }
             if (tentativa === 3) {
                 console.error(`❌ Falha ao baixar ${nomeArquivo}: ${erro.message}`);
+                return false;
             } else {
                 await new Promise(r => setTimeout(r, 2000));
             }
@@ -46,7 +48,7 @@ async function iniciarColetaEmLote() {
     }
 
     const editais = JSON.parse(fs.readFileSync(caminhoLinksJson, 'utf8'));
-    console.log(`🚀 Iniciando coleta em lote de ${editais.length} páginas cadastradas...`);
+    console.log(`🚀 Iniciando coleta inteligente de ${editais.length} páginas da UFOPA...`);
 
     for (const edital of editais) {
         console.log(`\n📂 Processando: Ano ${edital.ano} - ${edital.chamada}`);
@@ -65,22 +67,43 @@ async function iniciarColetaEmLote() {
             const $ = cheerio.load(html);
             
             const pdfsDestaPagina = [];
+
+            // Varre todos os links da página para capturar PDFs ou anexos institucionais
             $('a').each((i, el) => {
                 let href = $(el).attr('href');
                 let textoLink = $(el).text().trim();
 
-                if (href && (href.toLowerCase().includes('.pdf') || href.toLowerCase().includes('download'))) {
-                    if (!href.startsWith('http')) {
-                        const origin = new URL(edital.url).origin;
-                        href = `${origin}${href.startsWith('/') ? '' : '/'}${href}`;
+                if (href) {
+                    const hrefLower = href.toLowerCase();
+                    // Captura se for PDF, download, ou se contiver termos comuns de chamadas/listões
+                    if (
+                        hrefLower.includes('.pdf') || 
+                        hrefLower.includes('download') || 
+                        hrefLower.includes('file') || 
+                        hrefLower.includes('anexo') ||
+                        textoLower.toLowerCase().includes('chamada') ||
+                        textoLower.toLowerCase().includes('classificado')
+                    ) {
+                        if (!href.startsWith('http')) {
+                            const origin = new URL(edital.url).origin;
+                            href = `${origin}${href.startsWith('/') ? '' : '/'}${href}`;
+                        }
+                        
+                        // Limpa o nome para criar um ficheiro seguro
+                        let nomeSeguro = textoLink.replace(/[^a-zA-Z0-9à-úÀ-Ú]/g, '_').substring(0, 50) || `documento_${i}`;
+                        if (!nomeSeguro.toLowerCase().endsWith('.pdf') && hrefLower.includes('.pdf')) {
+                            nomeSeguro += '.pdf';
+                        } else if (!nomeSeguro.toLowerCase().endsWith('.pdf')) {
+                            nomeSeguro += '.pdf'; // Garante extensão para leitura posterior
+                        }
+
+                        pdfsDestaPagina.push({ url: href, nome: nomeSeguro });
                     }
-                    let nomeSeguro = textoLink.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50) || `curso_${i}`;
-                    pdfsDestaPagina.push({ url: href, nome: `${nomeSeguro}.pdf` });
                 }
             });
 
             const unicos = [...new Map(pdfsDestaPagina.map(p => [p.url, p])).values()];
-            console.log(`📄 Encontrados ${unicos.length} PDFs nesta página.`);
+            console.log(`📄 Encontrados ${unicos.length} links/documentos potenciais nesta página.`);
 
             for (let i = 0; i < unicos.length; i++) {
                 console.log(`[${i + 1}/${unicos.length}] Baixando: ${unicos[i].nome}`);
@@ -93,7 +116,7 @@ async function iniciarColetaEmLote() {
         }
     }
 
-    console.log("\n🎉 Coleta em lote finalizada com sucesso!");
+    console.log("\n🎉 Coleta inteligente finalizada com sucesso!");
 }
 
 iniciarColetaEmLote();
