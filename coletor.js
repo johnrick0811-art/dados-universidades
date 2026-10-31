@@ -1,5 +1,5 @@
 const fs = require('fs');
-const path = path = require('path');
+const path = require('path');
 
 const caminhoLinksJson = path.join(__dirname, 'links.json');
 
@@ -55,7 +55,6 @@ async function iniciarColetaEmLote() {
             });
             const html = await response.text();
             
-            // Simulação de parsing simples por regex para extrair links de documentos/PDFs sem dependências externas problemáticas
             const regexLinks = /href="([^"]+)"/g;
             let match;
             const pdfsDestaPagina = [];
