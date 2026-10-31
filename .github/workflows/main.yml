@@ -1,9 +1,12 @@
 name: Atualizar Dados da UFOPA
 
 on:
-  workflow_dispatch: # Permite disparar manualmente o robô a qualquer momento com um clique
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 1 * *' # Executa automaticamente uma vez por mês (opcional)
+    - cron: '0 0 1 * *'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -21,7 +24,7 @@ jobs:
       - name: Instalar dependências
         run: npm install
 
-      - name: Executar coletor de PDFs
+      - name: Executar coletor inteligente
         run: node coletor.js
 
       - name: Processar dados e gerar dados.js
@@ -32,5 +35,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add dados.js
-          git commit -m "🤖 Atualização automática dos dados de notas de corte" || echo "Sem alterações para commit"
+          git commit -m "🤖 Atualização automática e integrada dos dados" || echo "Sem alterações para commit"
           git push
