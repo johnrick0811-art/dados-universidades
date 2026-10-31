@@ -68,33 +68,31 @@ async function iniciarColetaEmLote() {
             
             const pdfsDestaPagina = [];
 
-            // Varre todos os links da página para capturar PDFs ou anexos institucionais
             $('a').each((i, el) => {
                 let href = $(el).attr('href');
                 let textoLink = $(el).text().trim();
 
                 if (href) {
                     const hrefLower = href.toLowerCase();
-                    // Captura se for PDF, download, ou se contiver termos comuns de chamadas/listões
+                    const textoLower = textoLink.toLowerCase();
+
                     if (
                         hrefLower.includes('.pdf') || 
                         hrefLower.includes('download') || 
                         hrefLower.includes('file') || 
                         hrefLower.includes('anexo') ||
-                        textoLower.toLowerCase().includes('chamada') ||
-                        textoLower.toLowerCase().includes('classificado')
+                        textoLower.includes('chamada') ||
+                        textoLower.includes('resultado') ||
+                        textoLower.includes('classificado')
                     ) {
                         if (!href.startsWith('http')) {
                             const origin = new URL(edital.url).origin;
                             href = `${origin}${href.startsWith('/') ? '' : '/'}${href}`;
                         }
                         
-                        // Limpa o nome para criar um ficheiro seguro
                         let nomeSeguro = textoLink.replace(/[^a-zA-Z0-9à-úÀ-Ú]/g, '_').substring(0, 50) || `documento_${i}`;
-                        if (!nomeSeguro.toLowerCase().endsWith('.pdf') && hrefLower.includes('.pdf')) {
+                        if (!nomeSeguro.toLowerCase().endsWith('.pdf')) {
                             nomeSeguro += '.pdf';
-                        } else if (!nomeSeguro.toLowerCase().endsWith('.pdf')) {
-                            nomeSeguro += '.pdf'; // Garante extensão para leitura posterior
                         }
 
                         pdfsDestaPagina.push({ url: href, nome: nomeSeguro });
