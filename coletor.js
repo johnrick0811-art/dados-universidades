@@ -6,6 +6,9 @@ const caminhoLinksJson = path.join(__dirname, 'links.json');
 async function baixarArquivo(url, pastaDestino, nomeArquivo) {
     const caminhoCompleto = path.join(pastaDestino, nomeArquivo);
     
+    // Evita baixar duplicados se já existir
+    if (fs.existsSync(caminhoCompleto)) return true;
+
     for (let tentativa = 1; tentativa <= 3; tentativa++) {
         try {
             const response = await fetch(url, {
@@ -22,7 +25,6 @@ async function baixarArquivo(url, pastaDestino, nomeArquivo) {
                 fs.unlinkSync(caminhoCompleto);
             }
             if (tentativa === 3) {
-                console.error(`❌ Falha ao baixar ${nomeArquivo}: ${erro.message}`);
                 return false;
             } else {
                 await new Promise(r => setTimeout(r, 2000));
@@ -38,7 +40,7 @@ async function iniciarColetaEmLote() {
     }
 
     const editais = JSON.parse(fs.readFileSync(caminhoLinksJson, 'utf8'));
-    console.log(`🚀 Iniciando coleta inteligente de ${editais.length} páginas da UFOPA...`);
+    console.log(`🚀 Iniciando coleta seletiva de ${editais.length} páginas da UFOPA...`);
 
     for (const edital of editais) {
         console.log(`\n📂 Processando: Ano ${edital.ano} - ${edital.chamada}`);
@@ -55,46 +57,37 @@ async function iniciarColetaEmLote() {
             });
             const html = await response.text();
             
-            const regexLinks = /href="([^"]+)"/g;
+            // Procura estritamente por links que terminem em .pdf ou contenham palavras-chave de resultados/listões
+            const regexLinks = /href="([^"]+\.pdf[^"]*)"/g;
             let match;
             const pdfsDestaPagina = [];
             let i = 0;
 
             while ((match = regexLinks.exec(html)) !== null) {
                 let href = match[1];
-                const hrefLower = href.toLowerCase();
-
-                if (
-                    hrefLower.includes('.pdf') || 
-                    hrefLower.includes('download') || 
-                    hrefLower.includes('file') || 
-                    hrefLower.includes('anexo') ||
-                    hrefLower.includes('chamada') ||
-                    hrefLower.includes('resultado')
-                ) {
-                    if (!href.startsWith('http')) {
-                        const origin = new URL(edital.url).origin;
-                        href = `${origin}${href.startsWith('/') ? '' : '/'}${href}`;
-                    }
-
-                    let nomeSeguro = `documento_${i++}.pdf`;
-                    if (hrefLower.includes('.pdf')) {
-                        const partes = href.split('/');
-                        const ultimo = partes[partes.length - 1];
-                        if (ultimo.includes('.pdf')) nomeSeguro = ultimo;
-                    }
-
-                    pdfsDestaPagina.push({ url: href, nome: nomeSeguro });
+                
+                if (!href.startsWith('http')) {
+                    const origin = new URL(edital.url).origin;
+                    href = `${origin}${href.startsWith('/') ? '' : '/'}${href}`;
                 }
+
+                // Extrai o nome real do ficheiro PDF da URL
+                const partes = href.split('/');
+                let nomeArquivo = partes[partes.length - 1].split('?')[0];
+                if (!nomeArquivo.toLowerCase().endsWith('.pdf')) {
+                    nomeArquivo = `documento_${i++}.pdf`;
+                }
+
+                pdfsDestaPagina.push({ url: href, nome: nomeArquivo });
             }
 
             const unicos = [...new Map(pdfsDestaPagina.map(p => [p.url, p])).values()];
-            console.log(`📄 Encontrados ${unicos.length} links/documentos potenciais nesta página.`);
+            console.log(`📄 Encontrados ${unicos.length} PDFs válidos nesta página.`);
 
             for (let j = 0; j < unicos.length; j++) {
                 console.log(`[${j + 1}/${unicos.length}] Baixando: ${unicos[j].nome}`);
                 await baixarArquivo(unicos[j].url, pastaDestino, unicos[j].nome);
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, 500));
             }
 
         } catch (erro) {
@@ -102,7 +95,7 @@ async function iniciarColetaEmLote() {
         }
     }
 
-    console.log("\n🎉 Coleta inteligente finalizada com sucesso!");
+    console.log("\n🎉 Coleta seletiva finalizada com sucesso!");
 }
 
 iniciarColetaEmLote();
